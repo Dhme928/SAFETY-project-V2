@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>تطبيق ملاحظاتي</title>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f4f4f4;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .app-container {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      max-width: 420px; /* مناسب للجوال */
+      margin: 0 auto;
+      background-color: white;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+
+    .header {
+      text-align: center;
+      padding: 10px;
+      font-size: 16px;
+      font-weight: bold;
+      background-color: #333;
+      color: white;
+      border-bottom: 1px solid #FF8C00;
+    }
+
+    .content-area {
+      flex-grow: 1;
+      overflow-y: auto;
+      position: relative;
+      height: calc(100vh - 120px);
+    }
+
+    .tab-content {
+      display: none;
+      height: 100%;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    /* الشريط السفلي */
+    .nav-bar {
+      display: flex;
+      justify-content: space-around;
+      height: 55px;
+      background-color: white;
+      box-shadow: 0 -4px 10px rgba(0,0,0,0.1);
+      z-index: 10;
+    }
+
+    .nav-button {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #777;
+      font-size: 10px;
+      width: 25%;
+      cursor: pointer;
+      transition: color 0.3s;
+    }
+
+    .nav-button.active {
+      color: #FF8C00;
+      font-weight: bold;
+    }
+
+    .nav-icon {
+      font-size: 18px;
+      margin-bottom: 2px;
+    }
+
+    .icon-form::before { content:"📝"; }
+    .icon-data::before { content:"📊"; }
+    .icon-tasks::before { content:"✅"; }
+    .icon-news::before { content:"📰"; }
+
+    /* بطاقات News عمودي */
+    #newsContainer {
+      padding: 8px;
+      overflow-y: auto;
+      height: calc(100vh - 130px);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .news-card {
+      border: 2px solid green;
+      border-radius: 8px;
+      padding: 8px;
+      margin-bottom: 8px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+      background-color: white;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .news-card h3 {
+      margin: 0;
+      font-size: 1em;
+      color: #333;
+    }
+
+    .news-card .date {
+      font-size: 0.8em;
+      color: #999;
+    }
+
+    .news-card p {
+      margin: 0;
+      font-size: 0.9em;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-container">
+  <div class="header">Safety Observations 👷 تطبيق ملاحظاتي</div>
+
+  <div class="content-area">
+    <!-- تبويب الأخبار -->
+    <div id="NewsTab" class="tab-content">
+      <div id="newsContainer"></div>
+    </div>
+
+    <!-- تبويب الفورم -->
+    <div id="FormTab" class="tab-content" data-src="https://docs.google.com/forms/d/e/1FAIpQLSfYED_4UfHcmWn0fQOjtR5s8A0-Bhr4dwpe-80GjKkLeTR_Lw/viewform?embedded=true"></div>
+
+    <!-- تبويب البيانات -->
+    <div id="DataTab" class="tab-content" data-src="https://docs.google.com/spreadsheets/d/e/2PACX-1vTXlN-sE-IkQJLMaVOvRGSBYNLsDvwZTD15w7rarTIXBGoacF0C5_eiI7OmFs__zA8jtlwhy0ULLZ8N/pubhtml"></div>
+
+    <!-- تبويب المهام اليومية -->
+    <div id="TasksTab" class="tab-content" data-src="PLACEHOLDER_DAILY_TASKS_URL"></div>
+  </div>
+
+  <div class="nav-bar">
+    <div class="nav-button active" onclick="openTab(event,'NewsTab')">
+      <span class="nav-icon icon-news"></span><span>News</span>
+    </div>
+    <div class="nav-button" onclick="openTab(event,'FormTab')">
+      <span class="nav-icon icon-form"></span><span>Observation</span>
+    </div>
+    <div class="nav-button" onclick="openTab(event,'DataTab')">
+      <span class="nav-icon icon-data"></span><span>Safety Data</span>
+    </div>
+    <div class="nav-button" onclick="openTab(event,'TasksTab')">
+      <span class="nav-icon icon-tasks"></span><span>Daily Tasks</span>
+    </div>
+  </div>
+</div>
+
+<script>
+function openTab(evt, tabName){
+  const tabcontent = document.getElementsByClassName("tab-content");
+  const navbuttons = document.getElementsByClassName("nav-button");
+
+  for(let i=0;i<tabcontent.length;i++) tabcontent[i].classList.remove('active');
+  for(let i=0;i<navbuttons.length;i++) navbuttons[i].classList.remove("active");
+
+  const currentTab = document.getElementById(tabName);
+  currentTab.classList.add('active');
+  evt.currentTarget.classList.add("active");
+
+  const url = currentTab.getAttribute('data-src');
+  if(url && !currentTab.dataset.loaded && tabName!=='NewsTab'){
+    const iframe = document.createElement('iframe');
+    iframe.src = url;
+    currentTab.appendChild(iframe);
+    currentTab.dataset.loaded='true';
+  }
+
+  if(tabName==='NewsTab' && !currentTab.dataset.loaded){
+    loadNews();
+    currentTab.dataset.loaded='true';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', ()=>{
+  const firstButton = document.querySelector('.nav-bar .nav-button');
+  if(firstButton) openTab({currentTarget:firstButton},'NewsTab');
+});
+
+function loadNews(){
+  const url='https://docs.google.com/spreadsheets/d/e/2PACX-1vTffqUluUpeiIojcbvme9RKQIXMCzIVqpd_2QgNrLRGoX_DVoufCrhUTJRLw8htgTJAFXOgKZtXrFzj/pub?output=csv';
+  const container = document.getElementById('newsContainer');
+
+  Papa.parse(url, {
+    download:true,
+    header:false,
+    complete:function(results){
+      results.data.forEach(row=>{
+        if(row.join('').trim()==='') return;
+
+        const card = document.createElement('div');
+        card.className='news-card';
+
+        const title = document.createElement('h3');
+        title.textContent = row[1] || 'بدون عنوان';
+        card.appendChild(title);
+
+        const date = document.createElement('p');
+        date.className='date';
+        date.textContent = row[0] || 'بدون تاريخ';
+        card.appendChild(date);
+
+        const content = document.createElement('p');
+        content.textContent = row[2] || 'لا توجد تفاصيل إضافية.';
+        card.appendChild(content);
+
+        container.appendChild(card);
+      });
+    },
+    error:function(err){ console.error('Error loading news:', err); }
+  });
+}
+</script>
+
+</body>
+</html>
